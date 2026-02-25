@@ -25,8 +25,8 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 MOTORES = [
-    "models/gemini-3-flash-preview",
     "models/gemini-2.5-flash", 
+    "models/gemini-3-flash-preview",
     "models/gemini-2.0-flash", 
     "models/gemini-flash-latest"
 ]
