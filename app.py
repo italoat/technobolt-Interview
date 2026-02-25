@@ -2,124 +2,149 @@ import streamlit as st
 import google.generativeai as genai
 import fitz
 from streamlit_mic_recorder import mic_recorder
-import io
+import time
 
-# --- CONFIGURAÇÃO DE UI MODERNA ---
+# --- CONFIGURAÇÃO VISUAL SENIOR ---
 st.set_page_config(
-    page_title="TechnoBolt Co-Pilot | Interview AI",
-    page_icon="🎙️",
-    layout="centered"
+    page_title="TechnoBolt Co-Pilot | High-Performance Edition",
+    page_icon="⚡",
+    layout="wide"
 )
 
-# Custom CSS para um visual futurista e limpo
+# Estilização customizada (Dark Mode Pro)
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; }
-    .stMarkdown { font-family: 'Inter', sans-serif; }
+    .main { background-color: #0d1117; }
+    .stAlert { border-radius: 10px; }
     .answer-card {
-        background-color: #161b22;
-        border-radius: 15px;
-        padding: 20px;
+        background: linear-gradient(145deg, #161b22, #0d1117);
         border: 1px solid #30363d;
-        color: #c9d1d9;
-        margin-top: 20px;
+        border-left: 5px solid #238636;
+        padding: 25px;
+        border-radius: 12px;
+        color: #e6edf3;
+        font-size: 1.15rem;
+        box-shadow: 5px 5px 15px rgba(0,0,0,0.3);
     }
-    .status-online {
-        color: #238636;
-        font-weight: bold;
+    .model-info {
+        color: #8b949e;
         font-size: 0.8rem;
+        margin-bottom: 15px;
+        font-family: monospace;
+    }
+    .status-badge {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        background: #238636;
+        color: white;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- LOGICA DE BACKEND ---
+# --- MOTORES CONFIGURADOS (LISTA DO USUÁRIO) ---
+MOTORES = [
+    "models/gemini-3-flash-preview",
+    "models/gemini-2.5-flash", 
+    "models/gemini-2.0-flash", 
+    "models/gemini-flash-latest"
+]
 
-def extract_cv_data(uploaded_file):
-    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-    return "".join([page.get_text() for page in doc])
+def extract_pdf_context(file):
+    doc = fitz.open(stream=file.read(), filetype="pdf")
+    return " ".join([page.get_text() for page in doc])
 
-def generate_human_response(api_key, model_name, cv_context, audio_bytes):
+def call_gemini_with_fallback(api_key, cv_content, audio_bytes):
     genai.configure(api_key=api_key)
-    # Usando o 2.0 Flash para latência mínima e compreensão nativa de áudio
-    model = genai.GenerativeModel(model_name)
+    audio_data = {"mime_type": "audio/wav", "data": audio_bytes}
     
-    audio_part = {"mime_type": "audio/wav", "data": audio_bytes}
-    
-    # Prompt System: O "Cérebro" do entrevistado senior
-    prompt = f"""
-    VOCÊ É O CANDIDATO. Sua personalidade é de um profissional Sênior, confiante e direto.
-    Use o seguinte contexto de currículo para basear suas experiências:
-    {cv_context}
+    # Prompt de Engenharia: Focado em Senioridade e Postura
+    system_prompt = f"""
+    PERSONA: Você é o candidato Italo, um Arquiteto de Dados e DBA Sênior de alto nível.
+    CONTEXTO PROFISSIONAL: {cv_content}
 
-    INSTRUÇÕES DE RESPOSTA (ESTRITO):
-    1. PERSONA: Responda em 1ª pessoa. Você não está "ajudando" o candidato, você É o candidato.
-    2. TOM: Profissional, mas coloquial. Use termos como "Na prática...", "O grande desafio foi...", "Eu liderei...".
-    3. ESTRUTURA: Máximo de 3 a 4 frases. Foque em RESULTADO e TECNOLOGIA (ex: SQL Server, Arquitetura de Dados, Automação).
-    4. HUMANIDADE: Comece a resposta de forma natural, ex: "Boa pergunta. No meu tempo na [Empresa]...", ou "Sim, eu já lidei com isso da seguinte forma...".
-    5. NÃO seja um robô. Se a pergunta for técnica, descreva a solução. Se for comportamental, mostre maturidade.
+    SUA MISSÃO:
+    Responda à pergunta do entrevistador (áudio) de forma natural, humana e estratégica.
     
-    Ouça o áudio anexo e responda agora.
+    DIRETRIZES DE RESPOSTA:
+    1. Seja direto: Máximo 3 frases curtas e potentes.
+    2. Linguagem: Use "eu", "minha equipe", "implementamos". Foque em arquitetura, governança e ROI.
+    3. Humanidade: Use conectores naturais como "Na verdade...", "Um ponto crítico que resolvi foi...", "Exatamente, e inclusive...".
+    4. Proibido: Não diga "conforme o currículo" ou "sou uma IA". Você É o profissional.
     """
+
+    for model_name in MOTORES:
+        try:
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content([system_prompt, audio_data])
+            return response.text, model_name
+        except Exception as e:
+            if "429" in str(e):
+                st.sidebar.warning(f"⚠️ {model_name} sem cota. Tentando fallback...")
+                continue
+            return f"Erro técnico no motor {model_name}: {str(e)}", "Falha"
     
-    response = model.generate_content([prompt, audio_part])
-    return response.text
+    return "⚠️ Limite global de API atingido. Aguarde 60 segundos para nova tentativa.", "Nenhum"
 
-# --- INTERFACE ---
+# --- INTERFACE PRINCIPAL ---
 
-st.title("🎙️ TechnoBolt Interview Co-Pilot")
-st.markdown("<p class='status-online'>● AI ENGINE READY</p>", unsafe_allow_html=True)
+st.title("🛡️ TechnoBolt Interview Co-Pilot")
+st.markdown("<span class='status-badge'>MODO ESPECIALISTA ATIVO</span>", unsafe_allow_html=True)
 
 with st.sidebar:
-    st.header("⚙️ Core Settings")
-    key = st.text_input("Gemini API Key", type="password")
-    model_choice = st.selectbox("Intelligence Level", 
-                                ["models/gemini-2.0-flash","models/gemini-3-flash-preview", "models/gemini-2.5-flash", "models/gemini-flash-latest"])
-    file = st.file_uploader("Upload Profile (PDF)", type="pdf")
+    st.header("⚙️ Setup")
+    api_key = st.text_input("Gemini API Key", type="password", help="Pegue sua chave em aistudio.google.com")
+    cv_file = st.file_uploader("Seu Currículo (PDF)", type="pdf")
     
-    if file:
-        if 'cv_data' not in st.session_state:
-            with st.spinner("Indexing profile..."):
-                st.session_state.cv_data = extract_cv_data(file)
-            st.success("Profile Loaded.")
+    if cv_file and 'cv_text' not in st.session_state:
+        st.session_state.cv_text = extract_pdf_context(cv_file)
+        st.success("Perfil carregado com sucesso!")
 
-# --- ZONA DE INTERAÇÃO ---
 st.divider()
 
-col1, col2 = st.columns([1, 2])
+col_mic, col_ans = st.columns([1, 1.8])
 
-with col1:
-    st.subheader("Listening")
-    st.info("Clique e faça a pergunta como se fosse o recrutador.")
-    audio = mic_recorder(
-        start_prompt="Start Listening",
-        stop_prompt="Stop & Process",
-        key='recorder'
+with col_mic:
+    st.markdown("### 🎙️ Captura")
+    st.info("O sistema ouvirá a pergunta do entrevistador e usará o motor Gemini para formular sua fala.")
+    
+    # Gravação via navegador
+    recorded_audio = mic_recorder(
+        start_prompt="🔴 Iniciar Escuta",
+        stop_prompt="⏹️ Analisar Pergunta",
+        key='interview_mic'
     )
 
-with col2:
-    st.subheader("Suggested Answer")
-    if audio:
-        if not key or 'cv_data' not in st.session_state:
-            st.warning("Aguardando Configurações (Chave API ou CV).")
+with col_ans:
+    st.markdown("### 🧠 Resposta do Candidato")
+    if recorded_audio:
+        if not api_key or 'cv_text' not in st.session_state:
+            st.error("Configure a API Key e o CV antes de começar.")
         else:
-            with st.spinner("Analyzing intent..."):
-                try:
-                    answer = generate_human_response(key, model_choice, st.session_state.cv_data, audio['bytes'])
-                    st.markdown(f"""
-                    <div class="answer-card">
-                        {answer}
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Log de histórico simples
-                    if 'history' not in st.session_state: st.session_state.history = []
-                    st.session_state.history.append(answer)
-                except Exception as e:
-                    st.error(f"Engine Error: {e}")
+            with st.spinner("IA processando áudio..."):
+                start_time = time.time()
+                resposta, motor_usado = call_gemini_with_fallback(
+                    api_key, 
+                    st.session_state.cv_text, 
+                    recorded_audio['bytes']
+                )
+                end_time = time.time()
+                
+                st.markdown(f"""
+                <div class="answer-card">
+                    <div class="model-info">MOTOR: {motor_usado} | LATÊNCIA: {end_time - start_time:.2f}s</div>
+                    {resposta}
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Adiciona ao histórico da sessão
+                if 'history' not in st.session_state: st.session_state.history = []
+                st.session_state.history.append(resposta)
     else:
-        st.write("Aguardando entrada de áudio...")
+        st.write("Aguardando áudio para processar...")
 
+# Histórico discreto no rodapé
 if 'history' in st.session_state and st.session_state.history:
     with st.expander("Timeline de Respostas"):
-        for i, h in enumerate(reversed(st.session_state.history)):
-            st.text(f"Turno {len(st.session_state.history)-i}: {h[:100]}...")
+        for r in reversed(st.session_state.history):
+            st.markdown(f"- {r}")
