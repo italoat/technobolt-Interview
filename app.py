@@ -73,7 +73,7 @@ with st.sidebar:
     st.header("⚙️ Core Settings")
     key = st.text_input("Gemini API Key", type="password")
     model_choice = st.selectbox("Intelligence Level", 
-                                ["gemini-2.0-flash", "gemini-3-flash-preview", "gemini-1.5-flash"])
+                                ["models/gemini-2.0-flash","models/gemini-3-flash-preview", "models/gemini-2.5-flash", "models/gemini-flash-latest"])
     file = st.file_uploader("Upload Profile (PDF)", type="pdf")
     
     if file:
