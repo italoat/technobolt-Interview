@@ -25,10 +25,11 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 MOTORES = [
+    "models/gemini-flash-latest",
     "models/gemini-2.0-flash", 
     "models/gemini-2.5-flash", 
-    "models/gemini-3-flash-preview",
-    "models/gemini-flash-latest"
+    "models/gemini-3-flash-preview"
+
 ]
 
 def extract_cv_content(file):
