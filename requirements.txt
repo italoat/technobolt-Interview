@@ -1,4 +1,14 @@
-streamlit
-google-generativeai
-pymupdf
-streamlit-mic-recorder
+# Web Framework & UI
+streamlit>=1.30.0
+
+# LLM Integration (Google Gemini)
+google-generativeai>=0.4.0
+
+# PDF Processing (PyMuPDF é importado como 'fitz' no código)
+PyMuPDF>=1.23.0
+
+# Voice Activity Detection & Speech to Text
+SpeechRecognition>=3.10.0
+
+# Backend de áudio necessário para o SpeechRecognition aceder ao microfone
+PyAudio>=0.2.14
